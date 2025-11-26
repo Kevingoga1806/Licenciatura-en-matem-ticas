@@ -1,0 +1,131 @@
+/* ====================================
+   SECCIÓN INTRO
+==================================== */
+.intro {
+    text-align: center;
+    margin-top: 20px;
+    padding: 10px;
+}
+
+.intro h2 {
+    font-size: 2rem;
+    color: var(--rojo-ut);
+    margin-bottom: 10px;
+}
+
+.intro p {
+    max-width: 700px;
+    margin: 0 auto;
+    font-size: 1.1rem;
+}
+
+.intro-img {
+    margin-top: 25px;
+    width: 160px;
+    opacity: 0.9;
+}
+
+/* ====================================
+   TARJETA DEL FORMULARIO
+==================================== */
+
+.form-section {
+    display: flex;
+    justify-content: center;
+    padding: 30px 10px;
+}
+
+.form-card {
+    background: white;
+    padding: 25px 35px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 850px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+    border-left: 6px solid var(--rojo-ut);
+    animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.form-card h2 {
+    color: var(--rojo-ut);
+    margin-bottom: 20px;
+}
+
+/* ====================================
+   CAMPOS
+==================================== */
+
+.form-group {
+    margin-bottom: 18px;
+}
+
+.form-group.full textarea {
+    width: 100%;
+    height: 130px;
+    resize: none;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid var(--rojo-ut);
+    border-radius: 8px;
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border: 2px solid var(--rojo-ut-oscuro);
+    box-shadow: -3px -3px 0 var(--rojo-ut-oscuro);
+}
+
+/* ====================================
+   BOTONES
+==================================== */
+
+.btns {
+    display: flex;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.btn-enviar,
+.btn-limpiar {
+    padding: 12px 20px;
+    border: none;
+    cursor: pointer;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: bold;
+    transition: 0.25s ease;
+}
+
+.btn-enviar {
+    background: var(--rojo-ut);
+    color: white;
+}
+
+.btn-enviar:hover {
+    background: var(--rojo-ut-oscuro);
+    transform: translateY(-4px);
+}
+
+.btn-limpiar {
+    background: var(--gris);
+}
+
+.btn-limpiar:hover {
+    background: var(--gris-oscuro);
+    color: white;
+    transform: translateY(-4px);
+}

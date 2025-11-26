@@ -1,0 +1,152 @@
+/* CONTENEDOR PRINCIPAL */
+.contacto-container {
+    width: 90%;
+    max-width: 1200px;
+    margin: 30px auto;
+}
+
+/* CUADRO SUPERIOR */
+.contacto-info {
+    background: var(--rojo-ut);
+    color: white;
+    padding: 18px 25px;
+    border-radius: 10px;
+    margin-bottom: 30px;
+    font-size: 17px;
+    box-shadow: 0px 4px 10px rgba(0,0,0,0.2);
+}
+
+/* GRID PRINCIPAL */
+.contacto-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 25px;
+}
+
+/* FORMULARIO */
+.contacto-form {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    border: 2px solid var(--rojo-ut);
+    box-shadow: 0px 4px 10px rgba(0,0,0,0.15);
+}
+
+.contacto-form h2 {
+    margin-bottom: 15px;
+    color: var(--rojo-ut);
+}
+
+.contacto-form label {
+    font-weight: bold;
+    display: block;
+    margin-top: 12px;
+}
+
+.contacto-form input,
+.contacto-form textarea {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    border: 2px solid var(--gris);
+    border-radius: 8px;
+}
+
+.contacto-form button {
+    width: 100%;
+    margin-top: 15px;
+    padding: 12px;
+    border: none;
+    background: var(--rojo-ut);
+    color: white;
+    font-size: 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.2s;
+}
+
+.contacto-form button:hover {
+    background: var(--rojo-ut-oscuro);
+    transform: translateY(-3px);
+}
+
+/* TEXTO CORREO */
+.correo-extra {
+    margin-top: 15px;
+    font-size: 14px;
+    color: var(--gris-oscuro);
+}
+
+/* FICHAS */
+.contacto-fichas {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    border: 2px solid var(--rojo-ut);
+    box-shadow: 0px 4px 10px rgba(0,0,0,0.15);
+}
+
+.contacto-fichas h2 {
+    color: var(--rojo-ut);
+    margin-bottom: 15px;
+}
+
+.ficha {
+    background: var(--gris-claro);
+    padding: 12px;
+    margin-bottom: 12px;
+    border-left: 5px solid var(--rojo-ut);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.ficha:hover {
+    background: var(--gris);
+    transform: translateX(5px);
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+    .contacto-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Tarjetas FAQ expandibles */
+.ficha {
+    background: #f8f8f8;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: background 0.2s ease;
+}
+
+.ficha:hover {
+    background: #f0f0f0;
+}
+
+/* Pregunta */
+.ficha-pregunta {
+    font-weight: 600;
+    font-size: 16px;
+}
+
+/* Respuesta (inicialmente oculta) */
+.ficha-respuesta {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    margin-top: 8px;
+    line-height: 1.4;
+    transition: all 0.3s ease;
+}
+
+/* Cuando se expande */
+.ficha.open .ficha-respuesta {
+    max-height: 300px;   /* suficiente espacio */
+    opacity: 1;
+}
