@@ -2,20 +2,23 @@
 const fetch = require('node-fetch');
 
 exports.handler = async function(event) {
-  if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
+  if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
 
-  const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-  const REPO_OWNER = process.env.REPO_OWNER;
-  const REPO_NAME = process.env.REPO_NAME;
-  const BRANCH = process.env.BRANCH || 'main';
+  const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+  const REPO_OWNER = process.env.REPO_OWNER;
+  const REPO_NAME = process.env.REPO_NAME;
+  const TARGET_BRANCH = process.env.TARGET_BRANCH || 'main'; // <--- ¡CAMBIO AQUÍ!
 
-  if (!GITHUB_TOKEN || !REPO_OWNER || !REPO_NAME) {
-    return { statusCode: 500, body: 'Missing env vars' };
-  }
+  if (!GITHUB_TOKEN || !REPO_OWNER || !REPO_NAME) {
+    return { statusCode: 500, body: 'Missing env vars' };
+  }
 
-  try {
-    const payload = JSON.parse(event.body);
-    const { path, content, message = 'Update via Netlify Function', branch = BRANCH } = payload;
+  try {
+    const payload = JSON.parse(event.body);
+    // Usa TARGET_BRANCH como valor por defecto si no viene en el payload:
+    const { path, content, message = 'Update via Netlify Function', branch = TARGET_BRANCH } = payload; // <--- ¡CAMBIO AQUÍ!
+
+
 
     const allowed = ['faqs.json','data/faqs.json','sugerencias.json','tarjetas.json','siteinfo.json','data/sugerencias.json','data/tarjetas.json','data/siteinfo.json'];
     if (!allowed.includes(path)) {
