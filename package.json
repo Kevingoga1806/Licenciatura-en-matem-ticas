@@ -1,0 +1,8 @@
+{
+  "name": "netlify-cms-project",
+  "version": "1.0.0",
+  "description": "Dependencies for Netlify Functions.",
+  "dependencies": {
+    "node-fetch": "^2.6.1"
+  }
+}
