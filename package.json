@@ -1,8 +1,19 @@
 {
-  "name": "netlify-cms-project",
+  "name": "licenciatura-en-matem-ticas",
   "version": "1.0.0",
-  "description": "Dependencies for Netlify Functions.",
+  "description": "Repositorio del proyecto final",
+  "main": "index.html",
+  "scripts": {
+    "start": "netlify dev"
+  },
+  "keywords": [
+    "netlify",
+    "functions",
+    "git"
+  ],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
-    "node-fetch": "^2.6.1"
+    "node-fetch": "^2.6.1" 
   }
 }
