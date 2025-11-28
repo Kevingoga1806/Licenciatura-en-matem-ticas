@@ -1,5 +1,4 @@
 // netlify/functions/update-file.js
-
 const fetch = require('node-fetch');
 
 exports.handler = async function(event) {
@@ -112,5 +111,4 @@ exports.handler = async function(event) {
     }
 
     return { statusCode: 405, body: 'Method Not Allowed' };
-};
 };
