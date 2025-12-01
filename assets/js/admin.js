@@ -161,8 +161,8 @@
     await loadSiteInfoToForm();
   }
 
-  /* SECCIONES */
-  function openSection(name){
+/* SECCIONES — CORREGIDO */
+async function openSection(name){ // <<< HACER ASÍNCRONA
     sectionTitle.textContent =
       name === "faqs" ? "Editar FAQs" :
       name === "siteinfo" ? "Editar información del sitio" :
@@ -179,14 +179,14 @@
 
     if(name === "sugerencias") {
       document.getElementById("sugerenciasSection").classList.remove("hidden");
-      renderSugerencias();
+      await renderSugerencias(); // <<< AWAIT AGREGADO
     }
 
     if(name === "tarjetas") {
       document.getElementById("tarjetasSection").classList.remove("hidden");
-      mostrarTarjetasEnAdmin();
+      await mostrarTarjetasEnAdmin(); // <<< AWAIT AGREGADO
     }
-  }
+}
 
   /* ============================================================
       3. FAQs CRUD — MODIFICADO A BACKEND
@@ -368,24 +368,62 @@
       footerText.value = info.footerText || '';
   }
 
-  /* ============================================================
-      SUGERENCIAS
-  ============================================================ */
+/* ============================================================
+    SUGERENCIAS — MIGRADO A BACKEND
+============================================================ */
 
-  function getSugerencias() {
-    return _getLS("math_sugerencias", []);
-  }
+async function getSugerencias() {
+    const remote = await apiGet("sugerencias.json");
+    // Si la lista está vacía, devuelve un array vacío.
+    return remote || [];
+}
 
-  function deleteSugerencia(idx) {
-    const list = getSugerencias();
-    list.splice(idx, 1);
-    _setLS("math_sugerencias", list);
-    renderSugerencias();
-  }
+async function saveSugerencias(list) {
+    const ok = await apiPost(
+        "sugerencias.json",
+        list, // El payload es la lista directa
+        "Actualización de sugerencias desde el panel Admin"
+    );
+    if (ok) await renderSugerencias();
+}
 
-  function renderSugerencias() {
+async function deleteSugerencia(idx) {
+    if (!confirm("¿Eliminar esta sugerencia?")) return;
+
+    const list = await getSugerencias();
+    // Convierte el índice a número antes de usar splice, ya que viene del data-idx (string)
+    const indexNum = parseInt(idx, 10); 
+    list.splice(indexNum, 1); 
+    
+    await saveSugerencias(list);
+}
+
+// Ahora es ASYNC para leer de GitHub
+async function renderSugerencias() {
     const cont = document.getElementById("sugerenciasList");
-    const list = getSugerencias();
+    const list = await getSugerencias(); 
+
+    cont.innerHTML = "";
+
+    if (!list.length) {
+      cont.innerHTML = "<p class='muted'>No hay sugerencias aún.</p>";
+      return;
+    }
+
+    list.forEach((sug, i) => {
+      const div = document.createElement("div");
+      div.className = "sug-item";
+      div.innerHTML = `
+        <p>${escapeHtml(sug)}</p>
+        <button class="btn" style="background:#e74c3c;color:#fff" data-idx="${i}">Eliminar</button>
+      `;
+      cont.appendChild(div);
+    });
+
+    cont.querySelectorAll("button").forEach(btn => {
+      btn.addEventListener("click", e => deleteSugerencia(e.target.dataset.idx));
+    });
+}
 
     cont.innerHTML = "";
 
@@ -408,26 +446,36 @@
       btn.addEventListener("click", e => deleteSugerencia(e.target.dataset.idx));
     });
   }
+/* ============================================================
+    TARJETAS — MIGRADO A BACKEND
+============================================================ */
 
-  /* ============================================================
-      TARJETAS
-  ============================================================ */
-
-  function obtenerTarjetas() {
-    return _getLS("math_tarjetas", [
+// Ahora es ASYNC para leer de GitHub
+async function obtenerTarjetas() {
+    const remote = await apiGet("tarjetas.json");
+    
+    // Usamos los valores por defecto si no hay un array válido en GitHub
+    return remote.items || [
       { id: uid(), titulo: "Validaciones", descripcion: "Información sobre validaciones y requisitos." },
       { id: uid(), titulo: "Homologaciones", descripcion: "Guía completa para homologaciones." },
       { id: uid(), titulo: "Transferencias internas", descripcion: "Procedimiento para cambiar de programa." }
-    ]);
-  }
+    ];
+}
 
-  function guardarTarjetas(list) {
-    _setLS("math_tarjetas", list);
-  }
+// Ahora es ASYNC y usa apiPost
+async function guardarTarjetas(list) {
+    const ok = await apiPost(
+        "tarjetas.json",
+        { items: list }, // Usamos el formato { items: [...] }
+        "Actualización de tarjetas desde el panel Admin"
+    );
+    return ok;
+}
 
-  function mostrarTarjetasEnAdmin() {
+// Ahora es ASYNC para leer de GitHub
+async function mostrarTarjetasEnAdmin() {
     const cont = document.getElementById("tarjetasList");
-    const list = obtenerTarjetas();
+    const list = await obtenerTarjetas(); // <<< Await aquí
 
     cont.innerHTML = "";
 
@@ -439,7 +487,7 @@
     list.forEach(card => {
       const div = document.createElement("div");
       div.className = "card-item-admin";
-
+      
       div.innerHTML = `
         <h4 contenteditable="false" data-id="${card.id}">${escapeHtml(card.titulo)}</h4>
         <p class="desc" contenteditable="false" data-id="${card.id}">${escapeHtml(card.descripcion)}</p>
@@ -451,7 +499,6 @@
           <button class="btn" style="background:#e74c3c;color:#fff" data-id="${card.id}">Eliminar</button>
         </div>
       `;
-
       cont.appendChild(div);
     });
 
@@ -459,52 +506,55 @@
     cont.querySelectorAll(".saveCard").forEach(b => b.addEventListener("click", saveCard));
     cont.querySelectorAll(".cancelCard").forEach(b => b.addEventListener("click", cancelCard));
     cont.querySelectorAll("button[style*='e74c3c']").forEach(b => b.addEventListener("click", deleteCard));
-  }
+}
 
-  function startEditCard(e) {
-    const id = e.target.dataset.id;
-    const box = e.target.closest(".card-item-admin");
+// Esta función no necesita ASYNC ya que solo manipula el DOM
+function startEditCard(e) {
+  const id = e.target.dataset.id;
+  const box = e.target.closest(".card-item-admin");
 
-    box.querySelector("h4").contentEditable = true;
-    box.querySelector(".desc").contentEditable = true;
+  box.querySelector("h4").contentEditable = true;
+  box.querySelector(".desc").contentEditable = true;
 
-    box.querySelector(".editCard").classList.add("hidden");
-    box.querySelector(".saveCard").classList.remove("hidden");
-    box.querySelector(".cancelCard").classList.remove("hidden");
-  }
+  box.querySelector(".editCard").classList.add("hidden");
+  box.querySelector(".saveCard").classList.remove("hidden");
+  box.querySelector(".cancelCard").classList.remove("hidden");
+}
 
-  function cancelCard() {
-    mostrarTarjetasEnAdmin();
-  }
+async function cancelCard() { // <<< ASYNC
+    await mostrarTarjetasEnAdmin();
+}
 
-  function saveCard(e) {
+async function saveCard(e) { // <<< ASYNC
     const id = e.target.dataset.id;
     const box = e.target.closest(".card-item-admin");
 
     const t = box.querySelector("h4").textContent.trim();
     const d = box.querySelector(".desc").textContent.trim();
 
-    const list = obtenerTarjetas();
+    const list = await obtenerTarjetas(); // <<< Await aquí
     const idx = list.findIndex(x => x.id === id);
 
     if (idx !== -1) {
       list[idx].titulo = t;
       list[idx].descripcion = d;
-      guardarTarjetas(list);
+      await guardarTarjetas(list); // <<< Await aquí
     }
 
-    mostrarTarjetasEnAdmin();
-  }
+    await mostrarTarjetasEnAdmin(); // <<< Await aquí
+}
 
-  function deleteCard(e) {
+async function deleteCard(e) { // <<< ASYNC
     if (!confirm("¿Eliminar esta tarjeta?")) return;
     const id = e.target.dataset.id;
 
-    const list = obtenerTarjetas().filter(x => x.id !== id);
-    guardarTarjetas(list);
+    const list = await obtenerTarjetas(); // <<< Await aquí
+    const filtered = list.filter(x => x.id !== id);
 
-    mostrarTarjetasEnAdmin();
-  }
+    await guardarTarjetas(filtered); // <<< Await aquí
+
+    await mostrarTarjetasEnAdmin(); // <<< Await aquí
+}
 
   /* ============================================================
       UTILIDADES
@@ -523,6 +573,7 @@
   // Iniciar todo:
   document.addEventListener("DOMContentLoaded", init);
 })();
+
 
 
 
