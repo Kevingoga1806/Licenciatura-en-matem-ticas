@@ -1,14 +1,19 @@
-/* admin.js — panel admin sin backend (LocalStorage) */
+/* admin.js — panel admin con backend Netlify */
 (() => {
   // Ajusta esta contraseña si quieres
   const ADMIN_USER = "admin";
-  const ADMIN_PASSWORD = "utadmin2025"; // <- cambia esto si quieres otra contraseña
+  const ADMIN_PASSWORD = "utadmin2025";
 
   const LS_KEYS = {
     logged: "math_portal_admin_logged",
     faqs: "math_portal_faqs",
     siteinfo: "math_portal_siteinfo"
   };
+
+  /* ============================================================
+      1. API URL (solicitud del usuario)
+  ============================================================ */
+  const API_URL = "https://fanciful-piroshki-d213dc.netlify.app/.netlify/functions/update-file";
 
   // DOM
   const loginScreen = document.getElementById("loginScreen");
@@ -35,7 +40,53 @@
   const saveSiteInfoBtn = document.getElementById("saveSiteInfo");
   const resetSiteInfoBtn = document.getElementById("resetSiteInfo");
 
-  // Helpers
+  /* ============================================================
+      2. BACKEND PERSISTENCIA – Netlify (solicitud del usuario)
+  ============================================================ */
+
+  async function apiGet(path) {
+    try {
+      const response = await fetch(`${API_URL}?path=${path}`);
+      if (!response.ok) {
+        console.error(`Error al leer ${path}: ${response.statusText}`);
+        return { items: [] };
+      }
+      return response.json();
+    } catch (e) {
+      console.error("Error de red:", e);
+      return { items: [] };
+    }
+  }
+
+  async function apiPost(path, content, message) {
+    try {
+      const payload = { path, content, message };
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || result.ok === false) {
+        console.error("Error API GitHub:", result.error || result);
+        alert("ERROR: No se pudo guardar en GitHub.");
+        return false;
+      }
+
+      alert("Cambios guardados en GitHub");
+      return true;
+    } catch (e) {
+      console.error("Error en POST:", e);
+      alert("ERROR DE RED al guardar.");
+      return false;
+    }
+  }
+
+  /* ============================================================
+      Helpers (NO SE MUEVE NADA AQUÍ)
+  ============================================================ */
   function _getLS(key, def) {
     try {
       const raw = localStorage.getItem(key);
@@ -52,12 +103,10 @@
   }
 
   // Init
-  function init() {
-    // Login state
+    async function init() {
     const logged = _getLS(LS_KEYS.logged, false);
     if (logged) showPanel(); else showLogin();
 
-    // Nav events
     navItems.forEach(li => {
       li.addEventListener("click", () => {
         navItems.forEach(i=>i.classList.remove("active"));
@@ -66,30 +115,27 @@
       });
     });
 
-    // Login
     loginBtn.addEventListener("click", doLogin);
     logoutBtn.addEventListener("click", doLogout);
 
-    // FAQs
     newFaqForm.addEventListener("submit", (e) => {
       e.preventDefault();
       addFaq(newQ.value.trim(), newA.value.trim());
       newFaqForm.reset();
     });
+
     saveAllBtn.addEventListener("click", () => {
-      alert("Los cambios se guardaron en LocalStorage.\nPara que se vean en el sitio público, abre index.html o contacto.html en el mismo navegador.");
+      alert("Los cambios se guardaron localmente.");
     });
 
-    // Site info
     saveSiteInfoBtn.addEventListener("click", saveSiteInfo);
     resetSiteInfoBtn.addEventListener("click", resetSiteInfo);
 
-    // Render initial
-    renderFaqs();
-    loadSiteInfoToForm();
+    await renderFaqs(); // <<< CAMBIO: AGREGAR 'await'
+    await loadSiteInfoToForm(); // <<< CAMBIO: AGREGAR 'await'
   }
 
-  /* LOGIN (falso) */
+  /* LOGIN */
   function doLogin(){
     const user = document.getElementById("username").value;
     const pass = document.getElementById("password").value;
@@ -108,67 +154,79 @@
     loginScreen.classList.remove("hidden");
     adminPanel.classList.add("hidden");
   }
-  function showPanel(){
+  async function showPanel(){
     loginScreen.classList.add("hidden");
     adminPanel.classList.remove("hidden");
-    renderFaqs();
-    loadSiteInfoToForm();
+    await renderFaqs();
+    await loadSiteInfoToForm();
   }
 
   /* SECCIONES */
-function openSection(name){
-    sectionTitle.textContent = name === "faqs" ? "Editar FAQs" :
-                                name === "siteinfo" ? "Editar información del sitio" :
-                                name === "docs" ? "Administrar documentos" :
-                                name === "tarjetas" ? "Editar tarjetas" :
-                                "Sugerencias";
+  function openSection(name){
+    sectionTitle.textContent =
+      name === "faqs" ? "Editar FAQs" :
+      name === "siteinfo" ? "Editar información del sitio" :
+      name === "docs" ? "Administrar documentos" :
+      name === "tarjetas" ? "Editar tarjetas" :
+      "Sugerencias";
 
-    // Ocultar todas las secciones
-    document.querySelectorAll(".panel-section").forEach(s => s.classList.add("hidden"));
+    document.querySelectorAll(".panel-section")
+      .forEach(s => s.classList.add("hidden"));
 
-    if(name === "faqs")
-        document.getElementById("faqsSection").classList.remove("hidden");
-
-    if(name === "siteinfo")
-        document.getElementById("siteinfoSection").classList.remove("hidden");
-
-    if(name === "docs")
-        document.getElementById("docsSection").classList.remove("hidden");
+    if(name === "faqs") document.getElementById("faqsSection").classList.remove("hidden");
+    if(name === "siteinfo") document.getElementById("siteinfoSection").classList.remove("hidden");
+    if(name === "docs") document.getElementById("docsSection").classList.remove("hidden");
 
     if(name === "sugerencias") {
-        document.getElementById("sugerenciasSection").classList.remove("hidden");
-        renderSugerencias();
+      document.getElementById("sugerenciasSection").classList.remove("hidden");
+      renderSugerencias();
     }
-    /* 👉 Aquí está la sección nueva de tarjetas */
+
     if(name === "tarjetas") {
-        document.getElementById("tarjetasSection").classList.remove("hidden");
-        mostrarTarjetasEnAdmin(); // actualizar lista
+      document.getElementById("tarjetasSection").classList.remove("hidden");
+      mostrarTarjetasEnAdmin();
     }
-}
+  }
 
+  /* ============================================================
+      3. FAQs CRUD — MODIFICADO A BACKEND
+  ============================================================ */
 
-  /* FAQs CRUD (LocalStorage) */
-  function getFaqs(){ return _getLS(LS_KEYS.faqs, defaultFaqs()); }
-  function saveFaqs(list){ _setLS(LS_KEYS.faqs, list); renderFaqs(); }
+  async function getFaqs() {
+    const remote = await apiGet("faqs.json");
+    return remote.items || defaultFaqs();
+  }
 
-  function defaultFaqs(){
-    // Si no hay FAQs guardadas, inicializa con cinco ejemplos (coinciden con tu index)
+  async function saveFaqs(list) {
+    const ok = await apiPost(
+      "faqs.json",
+      { items: list },
+      "Actualización de FAQs desde el panel Admin"
+    );
+
+    if (ok) await renderFaqs();
+  }
+
+  function defaultFaqs() {
     return [
-      { id: uid(), q: "¿Cuáles son los requisitos para una validación?", a: "La validación requiere... (texto editable por el admin)" },
-      { id: uid(), q: "¿Qué debo saber sobre homologaciones?", a: "Para una homologación se necesita... (texto editable por el admin)" },
-      { id: uid(), q: "¿Cómo funciona la transferencia o cambio de carrera?", a: "Para cambio de carrera... (texto editable por el admin)" },
-      { id: uid(), q: "¿Cómo solicitar matrícula extemporánea?", a: "La matrícula extemporánea se solicita... (texto editable por el admin)" },
-      { id: uid(), q: "Información sobre becas", a: "Las becas disponibles son... (texto editable por el admin)" }
+      { id: uid(), q: "¿Cuáles son los requisitos para una validación?", a: "La validación requiere..." },
+      { id: uid(), q: "¿Qué debo saber sobre homologaciones?", a: "Para una homologación..." },
+      { id: uid(), q: "¿Cómo funciona la transferencia o cambio de carrera?", a: "Para cambio de carrera..." },
+      { id: uid(), q: "¿Cómo solicitar matrícula extemporánea?", a: "La matrícula extemporánea se solicita..." },
+      { id: uid(), q: "Información sobre becas", a: "Las becas disponibles son..." }
     ];
   }
 
-  function renderFaqs(){
-    const list = getFaqs();
+  /* renderFaqs ahora es ASYNC */
+  async function renderFaqs() {
+    const list = await getFaqs();
     faqsList.innerHTML = "";
-    if(!list.length){
-      faqsList.innerHTML = "<p class='muted'>No hay FAQs. Agrega la primera usando el formulario.</p>";
+
+    if (!list.length) {
+      faqsList.innerHTML = "<p class='muted'>No hay FAQs aún.</p>";
       return;
     }
+
     list.forEach(item => {
       const el = document.createElement("div");
       el.className = "faq-item-admin";
@@ -185,243 +243,286 @@ function openSection(name){
       faqsList.appendChild(el);
     });
 
-    // Attach actions
     faqsList.querySelectorAll(".editBtn").forEach(b => b.addEventListener("click", startEdit));
     faqsList.querySelectorAll(".saveBtn").forEach(b => b.addEventListener("click", saveEdit));
     faqsList.querySelectorAll(".cancelBtn").forEach(b => b.addEventListener("click", cancelEdit));
     faqsList.querySelectorAll("button[title='Eliminar']").forEach(b => b.addEventListener("click", deleteFaq));
   }
 
-  function startEdit(e){
-    const id = e.target.dataset.id;
-    const container = e.target.closest(".faq-item-admin");
-    const h4 = container.querySelector("h4");
-    const ans = container.querySelector(".answer");
+    /* ============================================================
+      Continuación de CRUD FAQs
+  ============================================================ */
 
-    // Make editable
-    const qText = h4.textContent;
-    const aText = ans.textContent;
-    h4.contentEditable = true;
-    ans.contentEditable = true;
-    container.querySelector(".editBtn").classList.add("hidden");
-    container.querySelector(".saveBtn").classList.remove("hidden");
-    container.querySelector(".cancelBtn").classList.remove("hidden");
-  }
-  function saveEdit(e){
-    const id = e.target.dataset.id;
-    const container = e.target.closest(".faq-item-admin");
-    const h4 = container.querySelector("h4");
-    const ans = container.querySelector(".answer");
-    const list = getFaqs();
-    const idx = list.findIndex(x => x.id === id);
-    if(idx === -1) return;
-    list[idx].q = h4.textContent.trim();
-    list[idx].a = ans.textContent.trim();
-    saveFaqs(list);
-    // toggle buttons
-    container.querySelector(".editBtn").classList.remove("hidden");
-    container.querySelector(".saveBtn").classList.add("hidden");
-    container.querySelector(".cancelBtn").classList.add("hidden");
-    h4.contentEditable = false; ans.contentEditable = false;
-  }
-  function cancelEdit(e){
-    // re-render to reset
-    renderFaqs();
-  }
-  function deleteFaq(e){
-    if(!confirm("¿Eliminar esta FAQ? Esta acción no se puede deshacer.")) return;
-    const id = e.target.dataset.id;
-    const list = getFaqs().filter(x => x.id !== id);
-    saveFaqs(list);
-  }
+  async function addFaq(question, answer) {
+    if (!question || !answer) {
+      alert("Pregunta y respuesta obligatorias.");
+      return;
+    }
 
-  function addFaq(question, answer){
-    if(!question || !answer){ alert("Pregunta y respuesta obligatorias."); return; }
-    const list = getFaqs();
+    const list = await getFaqs();
     list.unshift({ id: uid(), q: question, a: answer });
-    saveFaqs(list);
-    renderFaqs();
+    await saveFaqs(list);
   }
 
-  // Site info
-  function loadSiteInfoToForm(){
-    const info = _getLS(LS_KEYS.siteinfo, defaultSiteInfo());
-    bannerText.value = info.bannerText || "";
-    searchTitle.value = info.searchTitle || "";
-    footerText.value = info.footerText || "";
+  async function startEdit(e) {
+    const id = e.target.dataset.id;
+    const box = e.target.closest(".faq-item-admin");
+
+    const title = box.querySelector("h4");
+    const ans = box.querySelector(".answer");
+
+    title.contentEditable = true;
+    ans.contentEditable = true;
+
+    box.querySelector(".editBtn").classList.add("hidden");
+    box.querySelector(".saveBtn").classList.remove("hidden");
+    box.querySelector(".cancelBtn").classList.remove("hidden");
   }
-  function defaultSiteInfo(){
-    return {
-      bannerText: "Banner Institucional - Licenciatura en Matemáticas",
-      searchTitle: "¿Qué necesitas saber?",
-      footerText: "© 2025 Facultad de Matemáticas - Universidad del Tolima\nDesarrollado por Kevin Andrés Gómez Garzón"
-    };
+
+  async function saveEdit(e) {
+    const id = e.target.dataset.id;
+    const box = e.target.closest(".faq-item-admin");
+
+    const title = box.querySelector("h4");
+    const ans = box.querySelector(".answer");
+
+    const list = await getFaqs();
+    const idx = list.findIndex(x => x.id === id);
+    if (idx === -1) return;
+
+    list[idx].q = title.textContent.trim();
+    list[idx].a = ans.textContent.trim();
+
+    await saveFaqs(list);
   }
-  function saveSiteInfo(){
-    const payload = {
-      bannerText: bannerText.value.trim(),
-      searchTitle: searchTitle.value.trim(),
-      footerText: footerText.value.trim()
-    };
-    _setLS(LS_KEYS.siteinfo, payload);
-    alert("Información del sitio guardada en LocalStorage.");
+
+  async function cancelEdit(e) {
+    await renderFaqs();
   }
-  function resetSiteInfo(){
-    if(!confirm("Restablecer la información del sitio a valores por defecto?")) return;
-    _setLS(LS_KEYS.siteinfo, defaultSiteInfo());
-    loadSiteInfoToForm();
+
+  async function deleteFaq(e) {
+    if (!confirm("¿Eliminar esta FAQ?")) return;
+    const id = e.target.dataset.id;
+
+    const list = await getFaqs();
+    const filtered = list.filter(x => x.id !== id);
+
+    await saveFaqs(filtered);
   }
 
   /* ============================================================
-   SUGERENCIAS - CRUD EN LOCALSTORAGE
-   ============================================================ */
+      SITE INFO
+  ============================================================ */
 
-  const LS_SUGERENCIAS = "sugerenciasList";
+  async function getSiteInfo() { // <<< REEMPLAZAR CON ESTO
+      const remote = await apiGet("siteinfo.json");
+      
+      // Si la lectura remota fue exitosa y trae contenido, la usamos.
+      if (remote && Object.keys(remote).length > 0) {
+          return remote;
+      }
+      // Si falla o está vacío, usamos los valores por defecto
+      return { 
+          bannerText: "Banner Institucional - Licenciatura en Matemáticas", 
+          searchTitle: "¿Qué necesitas saber?", 
+          footerText: "© 2025 Facultad de Matemáticas - Universidad del Tolima\nDesarrollado por Kevin Andrés Gómez Garzón"
+      };
+  }
 
-  /* Obtener lista completa */
-  function getSugerencias() {
-      try {
-          return JSON.parse(localStorage.getItem(LS_SUGERENCIAS)) || [];
-      } catch {
-          return [];
+  async function saveSiteInfo() { // <<< REEMPLAZAR CON ESTO
+      const data = {
+          bannerText: bannerText.value.trim(), 
+          searchTitle: searchTitle.value.trim(),
+          footerText: footerText.value.trim()
+      };
+      
+      // Se elimina la línea _setLS
+      
+      const ok = await apiPost(
+          "siteinfo.json",
+          data, // Enviamos el objeto de datos
+          "Actualización de Site Info desde el panel Admin"
+      );
+  
+      if (ok) {
+          // Recargamos el formulario para confirmar los nuevos valores
+          await loadSiteInfoToForm(); 
       }
   }
 
-  /* Guardar lista */
-  function saveSugerencias(list) {
-      localStorage.setItem(LS_SUGERENCIAS, JSON.stringify(list));
+  function resetSiteInfo() {
+    if (!confirm("¿Restablecer valores por defecto?")) return;
+
+    bannerText.value = "Bienvenido al Portal Académico";
+    searchTitle.value = "Buscador general";
+    footerText.value = "Universidad del Tolima - Todos los derechos reservados";
+
+    saveSiteInfo();
   }
 
-  /* Renderizar sugerencias en el Admin */
+  async function loadSiteInfoToForm() { // <<< REEMPLAZAR CON ESTO
+      const info = await getSiteInfo();
+      // Usamos las claves que estás usando en el formulario (deben ser consistentes)
+      bannerText.value = info.bannerText || ''; 
+      searchTitle.value = info.searchTitle || '';
+      footerText.value = info.footerText || '';
+  }
+
+  /* ============================================================
+      SUGERENCIAS
+  ============================================================ */
+
+  function getSugerencias() {
+    return _getLS("math_sugerencias", []);
+  }
+
+  function deleteSugerencia(idx) {
+    const list = getSugerencias();
+    list.splice(idx, 1);
+    _setLS("math_sugerencias", list);
+    renderSugerencias();
+  }
 
   function renderSugerencias() {
+    const cont = document.getElementById("sugerenciasList");
+    const list = getSugerencias();
 
-      const cont = document.getElementById("sugerenciasList");
+    cont.innerHTML = "";
 
-      if (!cont) return;
+    if (!list.length) {
+      cont.innerHTML = "<p class='muted'>No hay sugerencias aún.</p>";
+      return;
+    }
 
-      const list = getSugerencias();
-      cont.innerHTML = "";
+    list.forEach((sug, i) => {
+      const div = document.createElement("div");
+      div.className = "sug-item";
+      div.innerHTML = `
+        <p>${escapeHtml(sug)}</p>
+        <button class="btn" style="background:#e74c3c;color:#fff" data-idx="${i}">Eliminar</button>
+      `;
+      cont.appendChild(div);
+    });
 
-      if (!list.length) {
-          cont.innerHTML = "<p class='muted'>No hay sugerencias todavía.</p>";
-          return;
-      }
-
-      list.forEach((s, index) => {
-
-          const box = document.createElement("div");
-          box.className = "sug-item-admin";
-
-          box.innerHTML = `
-              <h4>${escapeHtml(s.nombre || "Anónimo")} — 
-                  <span style='font-size:14px;color:#555;'>${escapeHtml(s.email || "Sin correo")}</span>
-              </h4>
-
-              <p style="white-space:pre-wrap;">${escapeHtml(s.texto)}</p>
-
-              <div class="sug-actions">
-                  <button class="btn" style="background:#e74c3c;color:#fff;"
-                          onclick="borrarSugerencia(${index})">
-                      Eliminar
-                  </button>
-              </div>
-              <hr>
-          `;
-
-
-          cont.appendChild(box);
-      });
+    cont.querySelectorAll("button").forEach(btn => {
+      btn.addEventListener("click", e => deleteSugerencia(e.target.dataset.idx));
+    });
   }
 
+  /* ============================================================
+      TARJETAS
+  ============================================================ */
 
-
-
-
-  // simple escape for rendering safe text nodes
-  function escapeHtml(str){
-    if(!str) return "";
-    return str.replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
+  function obtenerTarjetas() {
+    return _getLS("math_tarjetas", [
+      { id: uid(), titulo: "Validaciones", descripcion: "Información sobre validaciones y requisitos." },
+      { id: uid(), titulo: "Homologaciones", descripcion: "Guía completa para homologaciones." },
+      { id: uid(), titulo: "Transferencias internas", descripcion: "Procedimiento para cambiar de programa." }
+    ]);
   }
 
-  // run
+  function guardarTarjetas(list) {
+    _setLS("math_tarjetas", list);
+  }
+
+  function mostrarTarjetasEnAdmin() {
+    const cont = document.getElementById("tarjetasList");
+    const list = obtenerTarjetas();
+
+    cont.innerHTML = "";
+
+    if (!list.length) {
+      cont.innerHTML = "<p class='muted'>No hay tarjetas.</p>";
+      return;
+    }
+
+    list.forEach(card => {
+      const div = document.createElement("div");
+      div.className = "card-item-admin";
+
+      div.innerHTML = `
+        <h4 contenteditable="false" data-id="${card.id}">${escapeHtml(card.titulo)}</h4>
+        <p class="desc" contenteditable="false" data-id="${card.id}">${escapeHtml(card.descripcion)}</p>
+
+        <div class="card-actions">
+          <button class="btn outline editCard" data-id="${card.id}">Editar</button>
+          <button class="btn primary saveCard hidden" data-id="${card.id}">Guardar</button>
+          <button class="btn outline cancelCard hidden" data-id="${card.id}">Cancelar</button>
+          <button class="btn" style="background:#e74c3c;color:#fff" data-id="${card.id}">Eliminar</button>
+        </div>
+      `;
+
+      cont.appendChild(div);
+    });
+
+    cont.querySelectorAll(".editCard").forEach(b => b.addEventListener("click", startEditCard));
+    cont.querySelectorAll(".saveCard").forEach(b => b.addEventListener("click", saveCard));
+    cont.querySelectorAll(".cancelCard").forEach(b => b.addEventListener("click", cancelCard));
+    cont.querySelectorAll("button[style*='e74c3c']").forEach(b => b.addEventListener("click", deleteCard));
+  }
+
+  function startEditCard(e) {
+    const id = e.target.dataset.id;
+    const box = e.target.closest(".card-item-admin");
+
+    box.querySelector("h4").contentEditable = true;
+    box.querySelector(".desc").contentEditable = true;
+
+    box.querySelector(".editCard").classList.add("hidden");
+    box.querySelector(".saveCard").classList.remove("hidden");
+    box.querySelector(".cancelCard").classList.remove("hidden");
+  }
+
+  function cancelCard() {
+    mostrarTarjetasEnAdmin();
+  }
+
+  function saveCard(e) {
+    const id = e.target.dataset.id;
+    const box = e.target.closest(".card-item-admin");
+
+    const t = box.querySelector("h4").textContent.trim();
+    const d = box.querySelector(".desc").textContent.trim();
+
+    const list = obtenerTarjetas();
+    const idx = list.findIndex(x => x.id === id);
+
+    if (idx !== -1) {
+      list[idx].titulo = t;
+      list[idx].descripcion = d;
+      guardarTarjetas(list);
+    }
+
+    mostrarTarjetasEnAdmin();
+  }
+
+  function deleteCard(e) {
+    if (!confirm("¿Eliminar esta tarjeta?")) return;
+    const id = e.target.dataset.id;
+
+    const list = obtenerTarjetas().filter(x => x.id !== id);
+    guardarTarjetas(list);
+
+    mostrarTarjetasEnAdmin();
+  }
+
+  /* ============================================================
+      UTILIDADES
+  ============================================================ */
+
+  function escapeHtml(str) {
+    return str.replace(/[&<>"']/g, m => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[m]));
+  }
+
+  // Iniciar todo:
   document.addEventListener("DOMContentLoaded", init);
-  window.renderSugerencias = renderSugerencias;
-  window.getSugerencias = getSugerencias;
-
-
 })();
 
-  /* Eliminar 1 sugerencia */
-function borrarSugerencia(index) {
-    let lista = window.getSugerencias();
-    lista.splice(index, 1);
-    localStorage.setItem("sugerenciasList", JSON.stringify(lista));
-    window.renderSugerencias();
-}
 
-
-
-
-function obtenerTarjetas() {
-    return JSON.parse(localStorage.getItem("tarjetasInfo")) || [];
-}
-
-function guardarTarjetas(tarjetas) {
-    localStorage.setItem("tarjetasInfo", JSON.stringify(tarjetas));
-    alert("Cambios guardados correctamente");
-}
-
-function mostrarTarjetasEnAdmin() {
-    const lista = document.getElementById("lista-tarjetas");
-    if (!lista) return;
-
-    const tarjetas = obtenerTarjetas();
-    lista.innerHTML = "";
-
-    tarjetas.forEach((t, index) => {
-        const li = document.createElement("li");
-        li.innerHTML = `
-            <strong>${t.titulo}</strong>
-            <button onclick="editarTarjeta(${index})">Editar</button>
-            <button onclick="eliminarTarjeta(${index})" style="color:red;">Eliminar</button>
-        `;
-
-        lista.appendChild(li);
-    });
-}
-
-document.getElementById("btn-agregar-tarjeta").addEventListener("click", () => {
-    const titulo = document.getElementById("titulo-tarjeta").value.trim();
-    const contenido = document.getElementById("contenido-tarjeta").value.trim();
-
-    if (!titulo || !contenido) {
-        alert("Debe completar ambos campos");
-        return;
-    }
-
-    const tarjetas = obtenerTarjetas();
-    tarjetas.push({ titulo, contenido });
-
-    guardarTarjetas(tarjetas);
-    mostrarTarjetasEnAdmin();
-});
-
-function eliminarTarjeta(index) {
-    const tarjetas = obtenerTarjetas();
-    tarjetas.splice(index, 1);
-    guardarTarjetas(tarjetas);
-    mostrarTarjetasEnAdmin();
-}
-
-function editarTarjeta(index) {
-    const tarjetas = obtenerTarjetas();
-    const nueva = prompt("Nuevo contenido:", tarjetas[index].contenido);
-
-    if (nueva !== null) {
-        tarjetas[index].contenido = nueva;
-        guardarTarjetas(tarjetas);
-        mostrarTarjetasEnAdmin();
-    }
-}
 
